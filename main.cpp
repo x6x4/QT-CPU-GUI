@@ -1,17 +1,21 @@
 #include "mainwindow.h"
 
-#include "/home/cracky/cppfun/3/lib/internals/cpu/cpu.h"
+#include "/home/cracky/cppfun/3/lib/IR_compiler/fwd_IR_compiler.h"
 #include "/home/cracky/cppfun/3/instr_set/instr_set.h"
 #include <QApplication>
 #include <QPushButton>
+#include <QTextStream>
 #include <QLabel>
+#include <QFile>
+#include <sstream>
+//#include <QVector>
 
 
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
 
-    //  GENERAL UI
+    /*  GENERAL UI  */
 
     QWidget win;
     win.setFixedSize(600, 500);
@@ -20,15 +24,11 @@ int main(int argc, char *argv[])
     QPushButton *b_main = new QPushButton (&win);
     b_main->setGeometry(10, 10, 500, 50);
 
-    QPushButton b_run ("Run", b_main);
-    b_run.setStyleSheet("background-color: #F72626");
-    b_run.setGeometry(10, 10, 50, 30);
-
     QPushButton *b_quit = new QPushButton ("Exit", &win);
     b_quit->setGeometry(520, 10, 50, 50);
     win.connect(b_quit, SIGNAL (clicked()), a.instance(), SLOT (quit())); 
 
-    //  DEFAULT SECTIONS
+    /*  DEFAULT SECTIONS  */
 
     std::size_t cell_h = 30;
     std::size_t cell_w = 30;
@@ -37,11 +37,12 @@ int main(int argc, char *argv[])
 
     //  DATA
 
-    std::size_t dh_x = 10;
+    std::size_t data_x = 10;
+    std::size_t data_h = cell_h;
 
     QLabel *data_header = new QLabel(&win);
     data_header->setFrameStyle(QFrame::StyledPanel);
-    data_header->setGeometry(dh_x, sections_y, header_w, cell_h);
+    data_header->setGeometry(data_x, sections_y, header_w, data_h);
     data_header->setText("DATA");
     data_header->setStyleSheet("background-color: #8EDC7A");
 
@@ -49,7 +50,7 @@ int main(int argc, char *argv[])
     for (int i = 0; i < data.size(); i++) {
         data[i] = new QLabel(&win);
         data[i]->setFrameStyle(QFrame::StyledPanel);
-        data[i]->setGeometry(dh_x+header_w+i*cell_w, sections_y, cell_w, cell_h);
+        data[i]->setGeometry(data_x+header_w+i*cell_w, sections_y, cell_w, data_h);
     }
 
     //  GP REGS
@@ -99,10 +100,57 @@ int main(int argc, char *argv[])
     sp_reg_block_frame[0]->setText("pc");
     sp_reg_block_frame[2]->setText("zf");
 
-    // LOGIC PART
+    /* CPU-DEPENDENT PART  */
 
-    /*CPU cpu(iset);
-    cpu.exec("/home/cracky/cppfun/3/prog2.asm");
+    CPU cpu(iset);
+    std::ifstream is ("/home/cracky/cppfun/3/prog2.asm");
+    strings vec = preproc (is);
+
+    //  BREAKPOINTS
+
+    std::size_t bp_x = data_x;
+    std::size_t bp_y = sections_y+data_h+20;
+    std::size_t button_w = 20;
+    std::size_t button_h = 20;
+    std::size_t bp_number = 8;
+    auto breakpoints = std::vector<Breakpoint_Button*>(bp_number);
+    for (int i = 0; i < breakpoints.size(); i++) {
+        breakpoints[i] = new Breakpoint_Button (&win);
+        breakpoints[i]->setText(QString::number(i+1));
+        breakpoints[i]->setGeometry(bp_x, bp_y + i*button_h, button_w, button_h);
+    }
+
+    //  ASM CODE
+
+    QLabel *asm_code = new QLabel(&win);
+    asm_code->setFrameStyle(QFrame::StyledPanel);
+
+    std::size_t code_x = bp_x+20;
+    std::size_t code_w = 300;
+    std::size_t line_h = 20;
+    asm_code->setGeometry(code_x, bp_y, code_w, line_h*(bp_number));
+
+
+
+
+    //cpu.load_mem(std::move(mcode));
+    /*std::stringstream in;
+    cpu.print_pm(in);
+    QString prog_str = QString::fromStdString(in.str());
+
+    asm_code->setText(prog_str);
+    asm_code->setAlignment(Qt::AlignVCenter);*/
+
+    //  RUN CPU
+
+    Run_Button b_run (b_main, &cpu, &breakpoints);
+    b_run.setStyleSheet("background-color: #F72626");
+    b_run.setGeometry(10, 10, 50, 30);
+    b_run.setText("Run");
+
+    //cpu.exec_mcode(std::move(mcode));
+
+    /*cpu.exec("/home/cracky/cppfun/3/prog2.asm");
     for (int i = 0; i < data.size(); i++) {
         data[i]->setText(QString::number(cpu.data(i)));
     }
