@@ -3,6 +3,7 @@
 
 #include <QMainWindow>
 #include <QPushButton>
+#include <QLabel>
 class CPU;
 
 QT_BEGIN_NAMESPACE
@@ -11,7 +12,13 @@ QT_END_NAMESPACE
 
 /*  OWN CLASSES  */
 
+class Styled_Label : public QLabel {
 
+Q_OBJECT
+
+public:
+    Styled_Label(QWidget *parent = nullptr);
+};
 
 class Click_Button : public QPushButton {
 
@@ -28,9 +35,19 @@ private slots:
     virtual void on_click () = 0;
 };
 
+class Run_Button;
+
 class Breakpoint_Button : public Click_Button {
 
 Q_OBJECT
+
+friend Run_Button;
+
+protected:
+    bool is_frozen = 0;
+
+public:
+    bool get_frozen () { return is_frozen; }
 
 public:
     Breakpoint_Button(QWidget *parent = nullptr) : Click_Button (parent) {}
