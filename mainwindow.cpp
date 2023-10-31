@@ -41,7 +41,20 @@ void Breakpoint_Button::on_click() {
     }
 }
 
-void word () { std::cout << "Word" << std::endl; }
+void GUI_State::operator() () {
+
+    for (int i = 0; i < data_block.size(); i++) {
+        data_block[i]->setText(QString::number(cpu->data(i)));
+    }
+
+    for (int i = 1; i < gpreg_block.size(); i+=2) {
+        gpreg_block[i]->setText(QString::number(cpu->gp(i/2)));
+    }
+
+    spreg_block[1]->setText(QString::number(cpu->sp(0)));
+    spreg_block[3]->setText(QString::number(cpu->sp(1)));
+};
+
 
 void Run_Button::on_click() {
     std::vector <std::size_t> bps;
@@ -51,6 +64,8 @@ void Run_Button::on_click() {
         (*breakpoints)[i]->is_frozen = 1;
     }
 
-    cpu->exec(bps, word);
+    std::function<void()> f = *sections;
+
+    exec(*(sections->cpu), bps, f);
 }
 
