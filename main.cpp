@@ -136,13 +136,12 @@ int main(int argc, char *argv[])
     //  RUN CPU
 
     std::vector<Cell_Block> vec = {data_cells, gp_reg_cells, sp_reg_cells};
-
     GUI_State gui_state (vec, &cpu);
 
     Run_Button b_run (b_main, &breakpoints, &gui_state);
-    b_run.setStyleSheet("background-color: #F72626");
     b_run.setGeometry(10, 10, 50, 30);
     b_run.setText("Run");
+    b_run.setStyleSheet("background-color: #F72626");
 
     //  END
 

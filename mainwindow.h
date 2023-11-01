@@ -1,10 +1,13 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
+#include "qeventloop.h"
 #include <QMainWindow>
 #include <QPushButton>
 #include <QLabel>
+#include <QThread>
 class CPU;
+class Run_Button;
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; class Red_Button; }
@@ -35,7 +38,6 @@ private slots:
     virtual void on_click () = 0;
 };
 
-class Run_Button;
 
 class Breakpoint_Button : public Click_Button {
 
@@ -89,6 +91,7 @@ public:
     Cell_Block spreg_block;
 
     CPU* cpu;
+    Run_Button *run_button;
 
     GUI_State (std::vector<Cell_Block> &vec, CPU *_cpu) {
         cpu = _cpu;
@@ -103,19 +106,31 @@ public:
 class Run_Button : public Click_Button {
     Q_OBJECT
 
+friend GUI_State;
+
 private:
     std::vector<Breakpoint_Button*>* breakpoints;
-    GUI_State* sections;
+    GUI_State* state;
 
 public:
     Run_Button(QWidget *parent = nullptr, std::vector<Breakpoint_Button*>* bps = nullptr,
                GUI_State *_sections = nullptr)
-        : Click_Button(parent), breakpoints(bps), sections(_sections) {}
+        : Click_Button(parent), breakpoints(bps), state(_sections) {}
 
 private slots:
     void on_click () override;
 };
 
+
+class MyThread : public QThread
+{
+    Run_Button *run_button;
+
+public:
+    MyThread(Run_Button *_rb) : run_button (_rb) {};
+
+    void run() override;
+};
 
 
 class MainWindow : public QMainWindow

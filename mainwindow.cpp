@@ -2,6 +2,8 @@
 #include "./ui_mainwindow.h"
 #include "/home/cracky/cppfun/3/lib/internals/cpu/cpu.h"
 
+#include <QEventLoop>
+
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
@@ -53,10 +55,38 @@ void GUI_State::operator() () {
 
     spreg_block[1]->setText(QString::number(cpu->sp(0)));
     spreg_block[3]->setText(QString::number(cpu->sp(1)));
+
+    run_button->is_clicked = 0;
+    run_button->setStyleSheet("background-color: #BD8F31");
+    run_button->setText("Stopped");
+
+    QEventLoop click_run;
+    std::cout << run_button->parent()->connect(run_button, SIGNAL (clicked()), &click_run, SLOT (quit())) << std::endl;
+    click_run.exec();
+
+    run_button->setText("Run");
+    run_button->setStyleSheet("background-color: #F72626");
 };
+
+void MyThread::run () {
+    // Create event loop
+    QEventLoop loop;
+
+    // Connect some signals and slots
+    run_button->parent()->connect(run_button, SIGNAL (clicked()), &loop, SLOT (quit()));
+
+    // Start event loop
+    loop.exec();
+    //emit quit();
+
+    // Continue execution of thread
+    // ...
+}
 
 
 void Run_Button::on_click() {
+
+    //  get bps and froze them
     std::vector <std::size_t> bps;
     for (std::size_t i = 0; i < breakpoints->size(); i++) {
         if ((*breakpoints)[i]->get_clicked())
@@ -64,8 +94,10 @@ void Run_Button::on_click() {
         (*breakpoints)[i]->is_frozen = 1;
     }
 
-    std::function<void()> f = *sections;
+    state->run_button = this;
 
-    exec(*(sections->cpu), bps, f);
+    std::function<void()> f = *state;
+
+    exec(*(state->cpu), bps, f);
 }
 
