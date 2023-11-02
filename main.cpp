@@ -7,6 +7,8 @@
 #include <QTextStream>
 #include <QLabel>
 #include <QFile>
+#include <QLineEdit>
+#include <QGridLayout>
 #include <sstream>
 
 
@@ -34,18 +36,15 @@ int main(int argc, char *argv[])
 
     /*  DEFAULT SECTIONS  */
 
-    std::size_t cell_h = 30;
-    std::size_t cell_w = 30;
     std::size_t sections_y = 70;
-    std::size_t header_w = 2*cell_w;
-    std::size_t header_h = cell_h;
+    std::size_t sections_w = 100;
 
     //  BREAKPOINTS & CODE WINDOW
 
     strings lines = preproc_text(is);
 
     std::size_t bp_x = 10;
-    std::size_t bp_y = sections_y+header_h+20;
+    std::size_t bp_y = sections_y+30+20;
     std::size_t button_w = 20;
     std::size_t button_h = 20;
     std::size_t line_w = 300;
@@ -66,48 +65,17 @@ int main(int argc, char *argv[])
     std::unordered_set<ID> data_label_table;
     std::unique_ptr<Data> data = parse_data(is, data_label_table);
 
-    std::size_t data_x = bp_x;
-    std::size_t data_y = sections_y;
-
-    Styled_Label *data_header = new Styled_Label(&win);
-    data_header->setGeometry(data_x, data_y, header_w, header_h);
-    data_header->setText("DATA");
-    data_header->setStyleSheet("background-color: #8EDC7A");
-
-    auto data_cells = Cell_Block(cpu.data_sz(), &win);
-    for (int i = 0; i < data_cells.size(); i++) {
-        data_cells[i]->setGeometry(data_x+header_w+i*cell_w, data_y, cell_w, cell_h);
-
-        if (data && i < data->size())
-            data_cells[i]->setText(QString::number((*data).at(i)));
-        else
-            data_cells[i]->setText("0");
-    }
+    Data_Widget *_data = new Data_Widget(&win, std::move(data), &cpu);
+    _data->setGeometry(20, sections_y, 300, 50);
 
     //  GP REGS
 
-    std::size_t gp_reg_x = 440;
-
-    Styled_Label *gp_reg_header = new Styled_Label(&win);
-    gp_reg_header->setGeometry(gp_reg_x, sections_y, header_w, header_h);
-    gp_reg_header->setText("GP REGS");
-    gp_reg_header->setStyleSheet("background-color: #BDAEAE");
-
-    auto gp_reg_cells = Cell_Block(8*2, &win);
-    for (int i = 0; i < gp_reg_cells.size() - 1; i+=2) {
-        gp_reg_cells[i]->setGeometry(gp_reg_x, sections_y+(i/2+1)*cell_h, cell_w, cell_h);
-        gp_reg_cells[i+1]->setGeometry(gp_reg_x+cell_w, sections_y+(i/2+1)*cell_h, cell_w, cell_h);
-
-        QVector<QString> reg_label{"r", QString::number(i/2)};
-        const QString reg = std::accumulate(reg_label.cbegin(),reg_label.cend(), QString{});
-        gp_reg_cells[i]->setText(reg);
-
-        gp_reg_cells[i+1]->setText("0");
-    }
+    GPREG_Widget *gpreg = new GPREG_Widget(&win, &cpu);
+    gpreg->setGeometry(350, sections_y, sections_w, 300);
 
     //  SP REGS
 
-    std::size_t sp_reg_x = gp_reg_x+header_w + 10;
+    /*std::size_t sp_reg_x = gp_reg_x+header_w + 10;
 
     Styled_Label *sp_reg_header = new Styled_Label(&win);
     sp_reg_header->setGeometry(sp_reg_x, sections_y, header_w, header_h);
@@ -123,25 +91,25 @@ int main(int argc, char *argv[])
     sp_reg_cells[0]->setText("pc");
     sp_reg_cells[1]->setText("0");
     sp_reg_cells[2]->setText("zf");
-    sp_reg_cells[3]->setText("0");
+    sp_reg_cells[3]->setText("0");*/
 
     /*/  LOGIC PART  /*/
 
     //  LOAD CPU
 
-    std::unique_ptr<SafeText> text = parse_text(iset, lines, data_label_table);
+    /*std::unique_ptr<SafeText> text = parse_text(iset, lines, data_label_table);
     Mem mcode = std::make_pair(std::move(data), std::move(text));
-    cpu.load_mem(std::move(mcode));
+    cpu.load_mem(std::move(mcode));*/
 
     //  RUN CPU
 
-    std::vector<Cell_Block> vec = {data_cells, gp_reg_cells, sp_reg_cells};
+    /*std::vector<Cell_Block> vec = {data_cells, gp_reg_cells, sp_reg_cells};
     GUI_State gui_state (vec, &cpu);
 
     Run_Button b_run (b_main, &breakpoints, &gui_state);
     b_run.setGeometry(10, 10, 50, 30);
     b_run.setText("Run");
-    b_run.setStyleSheet("background-color: #F72626");
+    b_run.setStyleSheet("background-color: #F72626");*/
 
     //  END
 

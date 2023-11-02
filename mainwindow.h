@@ -1,12 +1,13 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
-#include "qeventloop.h"
 #include <QMainWindow>
 #include <QPushButton>
 #include <QLabel>
 #include <QThread>
-class CPU;
+#include "/home/cracky/cppfun/3/lib/internals/cpu/cpu.h"
+
+
 class Run_Button;
 
 QT_BEGIN_NAMESPACE
@@ -22,6 +23,74 @@ Q_OBJECT
 public:
     Styled_Label(QWidget *parent = nullptr);
 };
+
+class Cell_Block {
+
+public:
+    std::vector<Styled_Label*> cells;
+
+    Cell_Block() {};
+
+    Cell_Block(std::size_t num_cells, QWidget *ptr) {
+
+        cells = std::vector<Styled_Label*>(num_cells);
+
+        for (int i = 0; i < cells.size(); i++)
+            cells[i] = new Styled_Label (ptr);
+    }
+
+    auto operator[] (std::size_t num) {
+        return cells.at(num);
+    }
+
+    std::size_t size() {
+        return cells.size();
+    }
+};
+
+
+//  WIDGETS
+
+class Section_Widget : public QWidget {
+    Q_OBJECT
+
+protected:
+    CPU *gui_cpu;
+    Cell_Block main_block;
+
+public:
+    Section_Widget (QWidget *parent, CPU *cpu) : QWidget (parent), gui_cpu (cpu) {};
+    virtual void update() = 0;
+};
+
+class Data_Widget : public Section_Widget {
+    Q_OBJECT
+
+public:
+    Data_Widget (QWidget *parent, std::unique_ptr<Data> data, CPU *cpu);
+    void update () override;
+};
+
+class GPREG_Widget : public Section_Widget {
+
+    Q_OBJECT
+
+public:
+    GPREG_Widget (QWidget *parent, CPU *cpu);
+    void update ();
+};
+
+class SPREG_Widget : public Section_Widget {
+
+    Q_OBJECT
+
+public:
+    SPREG_Widget (QWidget *parent, CPU *cpu);
+    void update ();
+};
+
+
+//  BUTTONS
 
 class Click_Button : public QPushButton {
 
@@ -58,35 +127,12 @@ private slots:
     void on_click () override;
 };
 
-class Cell_Block {
-
-public:
-    std::vector<Styled_Label*> cells;
-
-    Cell_Block() {};
-
-    Cell_Block(std::size_t num_cells, QWidget *ptr) {
-
-        cells = std::vector<Styled_Label*>(num_cells);
-
-        for (int i = 0; i < cells.size(); i++)
-            cells[i] = new Styled_Label (ptr);
-    }
-
-    auto operator[] (std::size_t num) {
-        return cells.at(num);
-    }
-
-    std::size_t size() {
-        return cells.size();
-    }
-};
 
 class GUI_State {
 
 public:
 
-    Cell_Block data_block;
+
     Cell_Block gpreg_block;
     Cell_Block spreg_block;
 
@@ -95,7 +141,6 @@ public:
 
     GUI_State (std::vector<Cell_Block> &vec, CPU *_cpu) {
         cpu = _cpu;
-        data_block = vec.at(0);
         gpreg_block = vec.at(1);
         spreg_block = vec.at(2);
     }
@@ -122,12 +167,14 @@ private slots:
 };
 
 
-class MyThread : public QThread
+class CPU_Thread : public QThread
 {
     Run_Button *run_button;
 
+    void update ();
+
 public:
-    MyThread(Run_Button *_rb) : run_button (_rb) {};
+    CPU_Thread(Run_Button *_rb) : run_button (_rb) {};
 
     void run() override;
 };
