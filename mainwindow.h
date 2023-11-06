@@ -5,10 +5,15 @@
 #include <QPushButton>
 #include <QLabel>
 #include <QThread>
+#include <QGridLayout>
+#include <QDialog>
+#include <QLineEdit>
 #include "/home/cracky/cppfun/3/lib/internals/cpu/cpu.h"
+#include "qpushbutton.h"
 
 
 class Run_Button;
+class Breakpoint_Button;
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; class Red_Button; }
@@ -48,18 +53,50 @@ public:
     }
 };
 
+class Code_Lines {
+
+    std::vector<QLineEdit*> lines;
+
+public:
+
+    std::size_t size() { return lines.size(); }
+    auto operator[] (std::size_t num) {
+        return lines.at(num);
+    }
+
+    Code_Lines () {};
+
+    Code_Lines (strings code_strings) {
+        lines = std::vector<QLineEdit*>(code_strings.size());
+
+        for (int i = 0; i < lines.size(); i++) {
+            lines[i] = new QLineEdit(QString::fromStdString(code_strings[i]));
+        }
+    }
+};
 
 //  WIDGETS
+
+class Code_Widget : public QWidget {
+    Q_OBJECT
+
+    Code_Lines code_lines;
+    std::vector<Breakpoint_Button*> breakpoints;
+
+public:
+    Code_Widget (QWidget *parent, strings lines, std::size_t bp_sz);
+    auto &bps () { return breakpoints; }
+};
 
 class Section_Widget : public QWidget {
     Q_OBJECT
 
 protected:
-    CPU *gui_cpu;
+    CPU *cpu;
     Cell_Block main_block;
 
 public:
-    Section_Widget (QWidget *parent, CPU *cpu) : QWidget (parent), gui_cpu (cpu) {};
+    Section_Widget (QWidget *parent, CPU *_cpu) : QWidget (parent), cpu (_cpu) {};
     virtual void update() = 0;
 };
 
@@ -67,7 +104,7 @@ class Data_Widget : public Section_Widget {
     Q_OBJECT
 
 public:
-    Data_Widget (QWidget *parent, std::unique_ptr<Data> data, CPU *cpu);
+    Data_Widget (QWidget *parent, CPU *cpu);
     void update () override;
 };
 
@@ -89,8 +126,35 @@ public:
     void update ();
 };
 
+class CPU_Widgets {
+
+    Code_Widget* code_win;
+    Data_Widget *_data;
+    GPREG_Widget *gpreg;
+    SPREG_Widget *spreg;
+    Run_Button *b_run;
+
+public:
+    CPU_Widgets (QWidget *parent, CPU *cpu, std::size_t b_sz, std::size_t little_b_sz);
+};
 
 //  BUTTONS
+
+class Open_Button : public QPushButton {
+
+Q_OBJECT
+
+    std::size_t b_sz;
+    std::size_t little_b_sz;
+    CPU *cpu;
+    CPU_Widgets *gui;
+
+public:
+    Open_Button (QWidget *parent, CPU *cpu, std::size_t _b_sz, std::size_t _little_b_sz);
+
+private slots:
+    void load ();
+};
 
 class Click_Button : public QPushButton {
 
@@ -107,7 +171,6 @@ private slots:
     virtual void on_click () = 0;
 };
 
-
 class Breakpoint_Button : public Click_Button {
 
 Q_OBJECT
@@ -121,31 +184,28 @@ public:
     bool get_frozen () { return is_frozen; }
 
 public:
-    Breakpoint_Button(QWidget *parent = nullptr) : Click_Button (parent) {}
+    Breakpoint_Button(QWidget *parent = nullptr, std::size_t bp_num = 0) : Click_Button (parent) {
+        setText(QString::number(bp_num));
+    }
 
 private slots:
     void on_click () override;
 };
 
-
 class GUI_State {
 
-public:
+friend Run_Button;
 
-
-    Cell_Block gpreg_block;
-    Cell_Block spreg_block;
+    std::vector<Section_Widget*> vec;
 
     CPU* cpu;
     Run_Button *run_button;
 
-    GUI_State (std::vector<Cell_Block> &vec, CPU *_cpu) {
-        cpu = _cpu;
-        gpreg_block = vec.at(1);
-        spreg_block = vec.at(2);
-    }
+    void update();
 
+public:
     void operator() ();
+    GUI_State (std::vector<Section_Widget*> _vec, CPU *_cpu) : vec (_vec), cpu (_cpu) {}
 };
 
 class Run_Button : public Click_Button {
@@ -154,16 +214,20 @@ class Run_Button : public Click_Button {
 friend GUI_State;
 
 private:
-    std::vector<Breakpoint_Button*>* breakpoints;
-    GUI_State* state;
+    std::vector<Breakpoint_Button*> breakpoints;
+    GUI_State show_state;
 
 public:
-    Run_Button(QWidget *parent = nullptr, std::vector<Breakpoint_Button*>* bps = nullptr,
-               GUI_State *_sections = nullptr)
-        : Click_Button(parent), breakpoints(bps), state(_sections) {}
+    Run_Button(QWidget *parent, std::vector<Breakpoint_Button*> bps, GUI_State _sections);
 
 private slots:
     void on_click () override;
+};
+
+
+class RunDialog : public QDialog {
+public:
+    RunDialog(QPushButton* orig);
 };
 
 
