@@ -179,8 +179,8 @@ Data_Widget::Data_Widget (QWidget *parent, CPU *cpu) : Section_Widget (parent, c
     for (int i = 0; i < main_block.size(); i++) {
         data_grid->addWidget(main_block[i], 0, i+2);
 
-        if (i < cpu->data().size())
-            main_block[i]->setText(QString::number(cpu->data().at(i)));
+        if (i < cpu->data_sz())
+            main_block[i]->setText(QString::number(cpu->data_cell(i)));
         else
             main_block[i]->setText("0");
     }
