@@ -1,11 +1,12 @@
 #include "mainwindow.h"
-#include "./ui_mainwindow.h"
 #include "qfiledialog.h"
 #include "qpushbutton.h"
 #include "qwidget.h"
 #include <QDialog>
 #include <QGridLayout>
 #include <QDebug>
+#include <QMessageBox>
+#include <stdexcept>
 #include "/home/cracky/cppfun/3/lib/IR_compiler/fwd_IR_compiler.h"
 
 /*  OWN CLASSES  */
@@ -26,28 +27,6 @@ RunDialog::RunDialog(QPushButton* orig) : QDialog(orig->parentWidget()) {
     connect(copy, &QPushButton::clicked, this, &QDialog::close);
 }
 
-//  SECTIONS UPDATES
-
-void GUI_State::update() { for (auto sect : vec) sect->update(); }
-
-void Data_Widget::update () {
-    for (int i = 0; i < main_block.size(); i++) {
-        main_block[i]->setText(QString::number(cpu->data_cell(i)));
-    }
-}
-
-void GPREG_Widget::update () {
-    for (int i = 1; i < main_block.size(); i+=2) {
-        main_block[i]->setText(QString::number(cpu->gp(i/2)));
-    }
-}
-
-void SPREG_Widget::update () {
-    for (int i = 1; i < main_block.size(); i+=2) {
-        main_block[i]->setText(QString::number(cpu->sp(i/2)));
-    }
-}
-
 CPU_Widgets::CPU_Widgets (QWidget *parent, CPU *cpu, std::size_t b_sz, std::size_t little_b_sz) {
 
     auto lines = cpu->lines();
@@ -56,20 +35,23 @@ CPU_Widgets::CPU_Widgets (QWidget *parent, CPU *cpu, std::size_t b_sz, std::size
 
     code_win = new Code_Widget (parent, lines, little_b_sz);
     code_win->move(little_b_sz, sections_y+b_sz + 10);
+    code_win->show();
 
     _data = new Data_Widget(parent, cpu);
     _data->setGeometry(little_b_sz, sections_y, 300, 50);
+    _data->show();
 
     gpreg = new GPREG_Widget(parent, cpu);
     gpreg->setGeometry(350, sections_y+b_sz + 10, sections_w, 300);
+    gpreg->show();
 
     spreg = new SPREG_Widget(parent, cpu);
     spreg->setGeometry(350+sections_w+10, sections_y+b_sz + 10, sections_w, 100);
+    spreg->show();
 
     b_run = new Run_Button(parent, code_win->bps(), GUI_State({_data, gpreg, spreg}, cpu));
     b_run->setGeometry(30, 10, b_sz, b_sz);
-
-    parent->show();
+    b_run->show();
 }
 
 //  BUTTONS
@@ -85,6 +67,7 @@ void Run_Button::on_click() {
     }
 
     show_state.run_button = this;
+
     exec(*show_state.cpu, bps, show_state);
 
     //  unfroze bps
@@ -95,6 +78,7 @@ void Run_Button::on_click() {
 
 Run_Button::Run_Button(QWidget *parent, std::vector<Breakpoint_Button*> bps, GUI_State _sections)
     : Click_Button(parent), breakpoints(bps), show_state(_sections) {
+
     setText("Run");
     setStyleSheet("background-color: #F72626");
 }
@@ -118,33 +102,48 @@ void Breakpoint_Button::on_click() {
     }
 }
 
-Open_Button::Open_Button (QWidget *parent, CPU *_cpu, std::size_t _b_sz, std::size_t _little_b_sz)
+Load_Button::Load_Button (QWidget *parent, CPU *_cpu, std::size_t _b_sz, std::size_t _little_b_sz)
     : QPushButton (parent), cpu (_cpu), b_sz (_b_sz), little_b_sz (_little_b_sz) {
+
     setText("Load program");
     parent->connect(this, SIGNAL (clicked()), this, SLOT (load()));
 }
 
-void Open_Button::load () {
-    QString filename = QFileDialog(parentWidget()).getOpenFileName(parentWidget(),"Open",
+void Load_Button::load () {
+
+    QFileDialog fileDialog = QFileDialog(parentWidget());
+    auto filename = fileDialog.getOpenFileName(parentWidget(),"Open",
                                                 "/home/cracky/cppfun/3/", "Asm files (*.asm)");
+    fileDialog.close();
     if (!filename.size()) return;
 
     if (cpu) {
-        load_cpu(*cpu, filename.toStdString().c_str());
+        try {
+            load_file_cpu(*cpu, filename.toStdString().c_str());
+        }
+        catch (std::logic_error &e) {
+            QMessageBox msg;
+            msg.critical(parentWidget(), "Load error", e.what());
+            msg.setFixedSize(200, 50);
+            return;
+        }
+
+        if (gui) gui->clear();
         gui = new CPU_Widgets(parentWidget(), cpu, b_sz, little_b_sz);
-        parentWidget()->show();
     }
 }
 
-//  LABELS
 
-Styled_Label::Styled_Label(QWidget *parent)
-    : QLabel(parent) {
-    setFrameStyle(QFrame::StyledPanel);
-    setAlignment(Qt::AlignCenter);
-}
 
-//  SECTIONS WIDGETS CTORS
+//  CPU WIDGETS
+
+void CPU_Widgets::clear () {
+    delete code_win;
+    delete _data;
+    delete gpreg;
+    delete spreg;
+    delete b_run;
+};
 
 Code_Widget::Code_Widget (QWidget *parent, strings raw_lines, std::size_t bp_sz)
     : QWidget (parent), code_lines (raw_lines) {
@@ -164,6 +163,27 @@ Code_Widget::Code_Widget (QWidget *parent, strings raw_lines, std::size_t bp_sz)
 
     cw_grid->deleteLater();
 };
+
+void GUI_State::update() { for (auto sect : vec) sect->update(); }
+
+void Data_Widget::update () {
+    for (int i = 0; i < main_block.size(); i++) {
+        main_block[i]->setText(QString::number(cpu->data_cell(i)));
+    }
+}
+
+void GPREG_Widget::update () {
+    for (int i = 1; i < main_block.size(); i+=2) {
+        main_block[i]->setText(QString::number(cpu->gp(i/2)));
+    }
+}
+
+void SPREG_Widget::update () {
+    for (int i = 1; i < main_block.size(); i+=2) {
+        main_block[i]->setText(QString::number(cpu->sp(i/2)));
+    }
+}
+
 
 Data_Widget::Data_Widget (QWidget *parent, CPU *cpu) : Section_Widget (parent, cpu) {
 
@@ -229,16 +249,10 @@ SPREG_Widget::SPREG_Widget (QWidget *parent, CPU *cpu) : Section_Widget (parent,
     main_block[2]->setText("zf");
 }
 
-//  DEFAULT CLASSES
+//  LABELS
 
-MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent)
-    , ui(new Ui::MainWindow)
-{
-    ui->setupUi(this);
-}
-
-MainWindow::~MainWindow()
-{
-    delete ui;
+Styled_Label::Styled_Label(QWidget *parent)
+    : QLabel(parent) {
+    setFrameStyle(QFrame::StyledPanel);
+    setAlignment(Qt::AlignCenter);
 }

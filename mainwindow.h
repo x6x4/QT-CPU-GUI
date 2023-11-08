@@ -10,6 +10,7 @@
 #include <QLineEdit>
 #include "/home/cracky/cppfun/3/lib/internals/cpu/cpu.h"
 #include "qpushbutton.h"
+#include "qwidget.h"
 
 
 class Run_Button;
@@ -128,29 +129,30 @@ public:
 
 class CPU_Widgets {
 
-    Code_Widget* code_win;
-    Data_Widget *_data;
-    GPREG_Widget *gpreg;
-    SPREG_Widget *spreg;
-    Run_Button *b_run;
+    Code_Widget* code_win = nullptr;
+    Data_Widget *_data = nullptr;
+    GPREG_Widget *gpreg = nullptr;
+    SPREG_Widget *spreg = nullptr;
+    Run_Button *b_run = nullptr;
 
 public:
     CPU_Widgets (QWidget *parent, CPU *cpu, std::size_t b_sz, std::size_t little_b_sz);
+    void clear ();
 };
 
 //  BUTTONS
 
-class Open_Button : public QPushButton {
+class Load_Button : public QPushButton {
 
 Q_OBJECT
 
     std::size_t b_sz;
     std::size_t little_b_sz;
-    CPU *cpu;
-    CPU_Widgets *gui;
+    CPU *cpu = nullptr;
+    CPU_Widgets *gui = nullptr;
 
 public:
-    Open_Button (QWidget *parent, CPU *cpu, std::size_t _b_sz, std::size_t _little_b_sz);
+    Load_Button (QWidget *parent, CPU *cpu, std::size_t _b_sz, std::size_t _little_b_sz);
 
 private slots:
     void load ();
@@ -230,29 +232,4 @@ public:
     RunDialog(QPushButton* orig);
 };
 
-
-class CPU_Thread : public QThread
-{
-    Run_Button *run_button;
-
-    void update ();
-
-public:
-    CPU_Thread(Run_Button *_rb) : run_button (_rb) {};
-
-    void run() override;
-};
-
-
-class MainWindow : public QMainWindow
-{
-    Q_OBJECT
-
-public:
-    MainWindow(QWidget *parent = nullptr);
-    ~MainWindow();
-
-private:
-    Ui::MainWindow *ui;
-};
 #endif // MAINWINDOW_H

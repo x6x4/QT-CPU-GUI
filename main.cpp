@@ -31,7 +31,7 @@ int main(int argc, char *argv[])
     b_quit->setGeometry(win_w - b_sz - 10, 10, b_sz, b_sz);
     win.connect(b_quit, SIGNAL (clicked()), a.instance(), SLOT (quit()));
 
-    Open_Button *b_load = new Open_Button (&win, new CPU(iset), b_sz, little_b_sz);
+    Load_Button *b_load = new Load_Button (&win, new CPU(iset), b_sz, little_b_sz);
     b_load->setGeometry(b_quit->x() - 3*b_sz - b_sz - 10, b_quit->y(), 3*b_sz, b_sz);
 
     win.show();
