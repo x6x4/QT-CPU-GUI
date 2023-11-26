@@ -1,235 +1,237 @@
+/**
+ * @file mainwindow.h
+ * @brief Contains main classes for the MVC interface model of the CPU emulator.
+ */
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
 #include <QMainWindow>
 #include <QPushButton>
-#include <QLabel>
-#include <QThread>
+
 #include <QGridLayout>
-#include <QDialog>
-#include <QLineEdit>
-#include "/home/cracky/cppfun/3/lib/internals/cpu/cpu.h"
-#include "qpushbutton.h"
+#include <QFileDialog>
+#include <QApplication>
+#include <QKeyEvent>
+#include <cstdlib>
+#include <exception>
+#include <fstream>
+#include "/home/cracky/cppfun/3/instr_set/instr_set.h"
+#include "qdebug.h"
+#include "qmessagebox.h"
+#include "qnamespace.h"
+#include "mainwidgets.h"
 #include "qwidget.h"
 
 
-class Run_Button;
+
 class Breakpoint_Button;
+class Controller;
+class LoadService;
+class CPUState;
 
 QT_BEGIN_NAMESPACE
-namespace Ui { class MainWindow; class Red_Button; }
+namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
 
-/*  OWN CLASSES  */
+class CPUState {
+friend LoadService;
 
-class Styled_Label : public QLabel {
+    CPU cpu = CPU(iset);
+    strings lines;
 
-Q_OBJECT
-
-public:
-    Styled_Label(QWidget *parent = nullptr);
-};
-
-class Cell_Block {
-
-public:
-    std::vector<Styled_Label*> cells;
-
-    Cell_Block() {};
-
-    Cell_Block(std::size_t num_cells, QWidget *ptr) {
-
-        cells = std::vector<Styled_Label*>(num_cells);
-
-        for (int i = 0; i < cells.size(); i++)
-            cells[i] = new Styled_Label (ptr);
-    }
-
-    auto operator[] (std::size_t num) {
-        return cells.at(num);
-    }
-
-    std::size_t size() {
-        return cells.size();
-    }
-};
-
-class Code_Lines {
-
-    std::vector<QLineEdit*> lines;
-
-public:
-
-    std::size_t size() { return lines.size(); }
-    auto operator[] (std::size_t num) {
-        return lines.at(num);
-    }
-
-    Code_Lines () {};
-
-    Code_Lines (strings code_strings) {
-        lines = std::vector<QLineEdit*>(code_strings.size());
-
-        for (int i = 0; i < lines.size(); i++) {
-            lines[i] = new QLineEdit(QString::fromStdString(code_strings[i]));
+    void load (QString filename, QWidget *par) {
+        try {
+            auto stream = std::ifstream(filename.toStdString().c_str());
+            lines = to_strings(stream);
+            cpu.load_mem(file_to_mcode(cpu.iSet(), lines));
+        }
+        catch (std::logic_error &e) {
+            QMessageBox msg;
+            msg.critical(par, "Load error", e.what());
+            msg.setFixedSize(200, 50);
+            throw;
         }
     }
-};
 
-//  WIDGETS
-
-class Code_Widget : public QWidget {
-    Q_OBJECT
-
-    Code_Lines code_lines;
-    std::vector<Breakpoint_Button*> breakpoints;
-
-public:
-    Code_Widget (QWidget *parent, strings lines, std::size_t bp_sz);
-    auto &bps () { return breakpoints; }
-};
-
-class Section_Widget : public QWidget {
-    Q_OBJECT
-
-protected:
-    CPU *cpu;
-    Cell_Block main_block;
+    void load (QWidget *par) {
+        try {
+            cpu.load_mem(file_to_mcode(cpu.iSet(), lines));
+        }
+        catch (std::logic_error &e) {
+            QMessageBox msg;
+            msg.critical(par, "Load error", e.what());
+            msg.setFixedSize(200, 50);
+            throw;
+        }
+    }
 
 public:
-    Section_Widget (QWidget *parent, CPU *_cpu) : QWidget (parent), cpu (_cpu) {};
-    virtual void update() = 0;
+    const CPU& getCPU() const { return cpu; }
+    const strings& getLines() const { return lines; }
+
 };
 
-class Data_Widget : public Section_Widget {
-    Q_OBJECT
-
-public:
-    Data_Widget (QWidget *parent, CPU *cpu);
-    void update () override;
-};
-
-class GPREG_Widget : public Section_Widget {
-
-    Q_OBJECT
-
-public:
-    GPREG_Widget (QWidget *parent, CPU *cpu);
-    void update ();
-};
-
-class SPREG_Widget : public Section_Widget {
-
-    Q_OBJECT
-
-public:
-    SPREG_Widget (QWidget *parent, CPU *cpu);
-    void update ();
-};
-
-class CPU_Widgets {
+class View {
+friend CPUState;
 
     Code_Widget* code_win = nullptr;
     Data_Widget *_data = nullptr;
     GPREG_Widget *gpreg = nullptr;
     SPREG_Widget *spreg = nullptr;
-    Run_Button *b_run = nullptr;
+
+    CPUState &cpuState;
 
 public:
-    CPU_Widgets (QWidget *parent, CPU *cpu, std::size_t b_sz, std::size_t little_b_sz);
-    void clear ();
-};
 
-//  BUTTONS
+    View(QWidget *par, CPUState &_cpuState) : cpuState (_cpuState) {
 
-class Load_Button : public QPushButton {
+        std::size_t sections_y = 70, sections_w = 100;
 
-Q_OBJECT
+        code_win = new Code_Widget (par);
+        code_win->move(LB_SZ, sections_y+B_SZ + 10);
+        code_win->show();
 
-    std::size_t b_sz;
-    std::size_t little_b_sz;
-    CPU *cpu = nullptr;
-    CPU_Widgets *gui = nullptr;
+        _data = new Data_Widget(par);
+        _data->init(cpuState.getCPU());
+        _data->setGeometry(LB_SZ, sections_y, 300, 50);
+        _data->show();
 
-public:
-    Load_Button (QWidget *parent, CPU *cpu, std::size_t _b_sz, std::size_t _little_b_sz);
+        gpreg = new GPREG_Widget(par);
+        gpreg->init();
+        gpreg->setGeometry(350, sections_y + 10, sections_w, 300);
+        gpreg->show();
 
-private slots:
-    void load ();
-};
-
-class Click_Button : public QPushButton {
-
-Q_OBJECT
-
-protected:
-    bool is_clicked = 0;
-
-public:
-    bool get_clicked () { return is_clicked; }
-    Click_Button(QWidget *parent = nullptr);
-
-private slots:
-    virtual void on_click () = 0;
-};
-
-class Breakpoint_Button : public Click_Button {
-
-Q_OBJECT
-
-friend Run_Button;
-
-protected:
-    bool is_frozen = 0;
-
-public:
-    bool get_frozen () { return is_frozen; }
-
-public:
-    Breakpoint_Button(QWidget *parent = nullptr, std::size_t bp_num = 0) : Click_Button (parent) {
-        setText(QString::number(bp_num));
+        spreg = new SPREG_Widget(par);
+        spreg->init();
+        spreg->setGeometry(350+sections_w+10, sections_y + 10, sections_w, 100);
+        spreg->show();
     }
 
-private slots:
-    void on_click () override;
+    void update (const CPUState &cpu) {
+        code_win->update(cpu.getLines());
+        _data->update(cpu.getCPU());
+        gpreg->update(cpu.getCPU());
+        spreg->update(cpu.getCPU());
+    }
+
+    void clear() {
+        delete code_win;
+        delete _data;
+        delete gpreg;
+        delete spreg;
+    }
 };
 
-class GUI_State {
 
-friend Run_Button;
+class LoadService {
+friend Controller;
 
-    std::vector<Section_Widget*> vec;
+    void operator() () {
+        try {
+            cpuState.load(getFilename(), main);
+            view = new View (main, cpuState);
+        }
+        catch (std::exception &e) {
+            qDebug() << e.what();
+        }
+    }
 
-    CPU* cpu;
-    Run_Button *run_button;
+    QWidget *main = nullptr;
+    View *view = nullptr;
+    CPUState cpuState;
 
-    void update();
+    LoadService (QWidget *par) : main (par) {}
+    QString getFilename () {
+        QString defPath = "/home/cracky/cppfun/3/programs";
 
-public:
-    void operator() ();
-    GUI_State (std::vector<Section_Widget*> _vec, CPU *_cpu) : vec (_vec), cpu (_cpu) {}
+        auto filename =
+        QFileDialog().getOpenFileName(main,"Open", defPath, "Asm files (*.asm)");
+
+        if (!filename.size()) {
+            QMessageBox msg (main);
+            msg.setFixedSize(200, 50);
+            msg.critical(main, "Load error", "Critical file error");
+
+            main->close();
+        }
+
+        return filename;
+    }
 };
 
-class Run_Button : public Click_Button {
+
+class RunService {
+friend Controller;
+
+    void operator() () {  };
+
+    RunService (QWidget *par) {
+
+    }
+
+};
+
+
+
+/**
+ * @class Controller
+ * @brief The main widget of emulator, handling various user actions.
+ * Transfers control to Load and Run services as needed.
+ *
+ * The quit button (or Esc) stops the emulation and exits the program.
+ * The load button enables loading of assembler source files.
+ * The run button (or F5) starts the emulation.
+ */
+class Controller : public QWidget {
     Q_OBJECT
 
-friend GUI_State;
-
-private:
-    std::vector<Breakpoint_Button*> breakpoints;
-    GUI_State show_state;
-
-public:
-    Run_Button(QWidget *parent, std::vector<Breakpoint_Button*> bps, GUI_State _sections);
+    LoadService loadS = LoadService(this);
+     RunService  runS = RunService(this);
 
 private slots:
-    void on_click () override;
-};
+    void load () { loadS(); }
+    void  run () { runS();  }
 
-
-class RunDialog : public QDialog {
 public:
-    RunDialog(QPushButton* orig);
+    Controller (QApplication &a)
+        : QWidget (new QWidget), main(a) {
+
+        std::size_t win_w = 700;
+        setFixedSize(win_w, 500);
+        setToolTip("CPU emulator");
+        parentWidget()->show();
+
+        std::size_t b_sz = B_SZ;
+
+        QPushButton *b_quit = new QPushButton ("Exit", this);
+        b_quit->setGeometry(win_w - b_sz - 10, 10, b_sz, b_sz);
+        connect(b_quit, SIGNAL (clicked()), a.instance(), SLOT (quit()));
+        b_quit->show();
+
+        QPushButton *b_load = new QPushButton ("Load program", this);
+        std::size_t load_b_sz = 3*b_sz;
+        b_load->setGeometry(b_quit->x() - load_b_sz - b_sz - 10, b_quit->y(), load_b_sz, b_sz);
+        connect(b_load, SIGNAL (clicked()), this, SLOT (load()));
+        b_load->show();
+
+        QPushButton *b_run = new QPushButton ("Run", this);
+        b_run->setGeometry(30, 10, b_sz, b_sz);
+        b_run->setStyleSheet("background-color: #F72626");
+        connect(b_run, SIGNAL (clicked()), this, SLOT (run()));
+        b_run->show();
+    }
+
+private:
+    QApplication &main;
+    void keyPressEvent(QKeyEvent *event) override
+    {
+        if (event->key() == Qt::Key_F5)
+            run();
+        else if (event->key() == Qt::Key_Escape)
+            main.quit();
+        else {};
+    }
 };
+
 
 #endif // MAINWINDOW_H
