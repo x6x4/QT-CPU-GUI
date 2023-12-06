@@ -1,51 +1,94 @@
 #include "mainwindow.h"
+#include "qapplication.h"
+#include "qdebug.h"
+#include "qeventloop.h"
 #include "qwidget.h"
 #include <QDialog>
-
 #include <QDebug>
 #include <QMessageBox>
 #include <cstddef>
-
-#include <stdexcept>
-
-/*  OWN CLASSES  */
-
-/*void GUI_State::operator() () {
-    update();
-    //if (!cpu->is_over()) RunDialog(run_button).exec();
-};
-
-RunDialog::RunDialog(QPushButton* orig) : QDialog(orig->parentWidget()) {
-    setWindowFlags(Qt::Widget);
-    this->setGeometry(orig->geometry());
-
-    QPushButton *copy = new QPushButton ("Continue", this);
-    copy->setStyleSheet("background-color: #BD8F31");
-    copy->setFixedSize(orig->size());
-
-    connect(copy, &QPushButton::clicked, this, &QDialog::close);
-}*/
+#include <functional>
 
 
-//  BUTTONS
+void BuildService::operator() (Controller* c) {
+    try {
+        auto &cpuState = c->viewCntl->cpuState;
+        my_std::Vec<std::size_t> avl_bps;
+        auto mcode =
+        file_to_mcode(cpuState->getCPU().iSet(),
+                      cpuState->getLines(), avl_bps);
 
-    //  get bps and froze them
-/*    my_std::Vec <std::size_t> bps;
-    for (std::size_t i = 0; i < breakpoints.size(); i++) {
-        if (breakpoints[i]->get_clicked())
-            bps.push_back(i);
-        breakpoints[i]->is_frozen = 1;
+        cpuState->cpu.load_mem(std::move(mcode));
+
+        c->viewCntl->avl_bps = avl_bps;
+    }
+    catch (std::logic_error &e) {
+        QMessageBox msg;
+        msg.critical(c, "Load error", e.what());
+        msg.setFixedSize(200, 50);
+        throw;
+    }
+}
+
+void LoadService::operator() (Controller* c) {
+
+    try {
+        auto stream = std::ifstream(getFilename(c).toStdString().c_str());
+        c->viewCntl->cpuState->lines = to_strings(stream);
+        c->viewCntl->view = new View (c, c->viewCntl->cpuState);
+    }
+    catch (std::logic_error &e) {
+        QMessageBox msg;
+        msg.critical(c, "Load error", e.what());
+        msg.setFixedSize(200, 50);
+        throw;
+    }
+}
+
+void RunService::operator() (Controller* c) {
+
+    if (!c->viewCntl) return;
+
+    auto guiBreakpoints = c->viewCntl->bps();
+    auto avl_bps = c->viewCntl->avl_bps;
+    std::size_t cur_cmd = 0;
+    my_std::Vec <bpNum> bps;
+
+    //  3 4 5 6 7 8
+    //  0 1 2 3 4 5
+
+    for (std::size_t i = 0, textNum = 0; i < guiBreakpoints.size(); i++) {
+        if (cur_cmd < avl_bps.size()) {
+            guiBreakpoints.at(i)->is_set && i == avl_bps.at(cur_cmd) ?
+                bps.push_back(bpNum(textNum++, i)) : guiBreakpoints.at(i)->reset();
+
+            if (i >= avl_bps.at(cur_cmd)) cur_cmd++;
+        }
+        else {
+            guiBreakpoints.at(i)->reset();
+        }
+
+        guiBreakpoints.at(i)->block();
     }
 
-    show_state.run_button = this;
+    auto dbg = [this, c](bpNum bp_num)->void{update_view(bp_num, c);};
 
-    exec(*show_state.cpu, bps, show_state);
+    for (auto e : bps) qDebug() << e.textNum << ' '<< e.progNum << ' ';
 
-    //  unfroze bps
-    for (std::size_t i = 0; i < breakpoints.size(); i++) {
-        breakpoints[i]->is_frozen = 0;
+    exec(c->viewCntl->getCPU(), bps, dbg);
+
+    for (std::size_t i = 0; i < guiBreakpoints.size(); i++) {
+        guiBreakpoints[i]->unblock();
     }
-*/
+}
+
+void RunService::update_view(bpNum bp_num, Controller* c) {
+    c->viewCntl->update(bp_num.progNum);
+    c->makeCringe();
+}
+
+
+
 
 
 

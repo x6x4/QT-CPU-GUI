@@ -13,7 +13,9 @@
 #include "qwidget.h"
 
 #define B_SZ 50
-#define LB_SZ 30
+#define LB_SZ 20
+
+class RunService;
 
 //  LABELS
 
@@ -34,46 +36,50 @@ class Click_Button : public QPushButton {
 Q_OBJECT
 
 protected:
-    bool is_unactive = 0;
+    bool is_set = 0;
 
 public:
 
     Click_Button(QWidget *parent = nullptr)
     : QPushButton(parent) {
-        is_unactive = 0;
         connect(this, &QPushButton::clicked, this, &Click_Button::on_click);
     }
 
 private slots:
-    void on_click () {
-        if (is_unactive) return;
-        before_freeze();
-    }
-    virtual void before_freeze () = 0;
+    virtual void on_click () = 0;
 };
 
 class Breakpoint_Button : public Click_Button {
+friend RunService;
 
 Q_OBJECT
 
 public:
     Breakpoint_Button(QWidget *parent = nullptr, std::size_t bp_num = 0) : Click_Button (parent) {
-        setFixedSize(B_SZ, B_SZ);
+        setFixedSize(LB_SZ, LB_SZ);
         setText(QString::number(bp_num));
     }
 
 private slots:
-    void before_freeze () override {
+    void on_click () override { is_set ? reset() : set(); }
 
-        if (Click_Button::is_unactive) {
+private:
+    bool blocked = 0;
+    void block() { blocked = 1; }
+    void unblock() { blocked = 0; }
+
+    void reset() {
+        if (!blocked) {
             setStyleSheet("background-color: #FFFFFF");
-            Click_Button::is_unactive = 0;
+            is_set = 0;
         }
-        else {
-            setStyleSheet("background-color: #F72626");
-            Click_Button::is_unactive = 1;
+    }
+    void set() {
+        if (!blocked) {
+            setStyleSheet("background-color: #FF0000");
+            is_set = 1;
         }
-    };
+    }
 };
 
 class RunButton : public Click_Button {
@@ -86,11 +92,10 @@ public:
     }
 
 private slots:
-    void before_freeze () override {
+    void on_click () override {
 
-        if (!Click_Button::is_unactive) {
-            Click_Button::is_unactive = 1;
-        }
+        if (is_set) return;
+        else is_set = 1;
     };
 };
 
@@ -102,6 +107,12 @@ class Code_Lines {
 
 public:
 
+    void clear_debug() {
+        for (size_t i = 0; i < lines.size(); i++) {
+            lines.at(i)->setStyleSheet("background-color: #FFFFFF");
+        }
+    }
+
     std::size_t size() { return lines.size(); }
     auto at (std::size_t num) { return lines.at(num); }
 
@@ -112,8 +123,9 @@ public:
 
         for (size_t i = 0; i < lines.size(); i++) {
             lines[i] = new QLineEdit(QString::fromStdString(code_strings[i].line));
-            lines[i]->setFixedHeight(B_SZ);
+            lines[i]->setFixedHeight(LB_SZ);
             lines[i]->setFixedWidth(200);
+            lines[i]->setFrame(false);
         }
     }
 };
@@ -127,9 +139,10 @@ class Code_Widget : public QWidget {
 public:
     Code_Widget (QWidget *parent) : QWidget (parent) {};
 
-    void update (const strings &lines) {
+    void init (const strings &lines) {
         code_lines = Code_Lines(lines);
         QGridLayout *cw_grid = new QGridLayout(this);
+        cw_grid->setVerticalSpacing(0);
 
         for (size_t i = 0; i < code_lines.size(); i++) {
             Breakpoint_Button *bp = new Breakpoint_Button (this, i+1);
@@ -140,8 +153,14 @@ public:
         }
 
         cw_grid->deleteLater();
-
     }
+
+    void update (size_t bp_num) {
+        code_lines.clear_debug();
+        if (bp_num < code_lines.size())
+            code_lines.at(bp_num)->setStyleSheet("background-color: #F72626");
+    }
+
     auto &bps () { return breakpoints; }
 };
 
@@ -174,8 +193,8 @@ public:
     }
 
     void update (const CPU &cpu) {
-        for (int i = 0; i < data_grid->columnCount(); i++) {
-            auto lbl = static_cast<Styled_Label>(data_grid->itemAt(i)->widget());
+        for (size_t i = 0; i < cpu.data_cap(); i++) {
+            auto lbl = static_cast<Styled_Label>(data_grid->itemAt(i+1)->widget());
             lbl.setText(QString::number(cpu.data_cell(i)));
         }
     };
