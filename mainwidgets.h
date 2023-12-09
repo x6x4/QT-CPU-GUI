@@ -7,6 +7,7 @@
 #include <QLabel>
 #include <QGridLayout>
 #include "qdebug.h"
+#include "qfiledialog.h"
 #include "qobjectdefs.h"
 
 #include "/home/cracky/cppfun/3/lib/IR_compiler/fwd_IR_compiler.h"
@@ -61,14 +62,14 @@ public:
     }
 
 private slots:
-    void on_click () override { is_set ? reset() : set(); }
+    void on_click () override { is_set ? clear() : set(); }
 
 private:
     bool blocked = 0;
     void block() { blocked = 1; }
     void unblock() { blocked = 0; }
 
-    void reset() {
+    void clear() {
         if (!blocked) {
             setStyleSheet("background-color: #FFFFFF");
             is_set = 0;
@@ -101,11 +102,9 @@ private slots:
 
 //  WIDGETS
 
-class Code_Lines {
+struct Code_Lines {
 
     std::vector<QLineEdit*> lines;
-
-public:
 
     void clear_debug() {
         for (size_t i = 0; i < lines.size(); i++) {
@@ -128,13 +127,14 @@ public:
             lines[i]->setFrame(false);
         }
     }
+
 };
 
 class Code_Widget : public QWidget {
     Q_OBJECT
 
-    Code_Lines code_lines;
     my_std::Vec<Breakpoint_Button*> breakpoints;
+    Code_Lines code_lines;
 
 public:
     Code_Widget (QWidget *parent) : QWidget (parent) {};
@@ -158,10 +158,17 @@ public:
     void update (size_t bp_num) {
         code_lines.clear_debug();
         if (bp_num < code_lines.size())
-            code_lines.at(bp_num)->setStyleSheet("background-color: #F72626");
+            code_lines.at(bp_num)->setStyleSheet("background-color: #FF7777");
     }
 
     auto &bps () { return breakpoints; }
+    auto getLines() {
+        strings Lines;
+        for (size_t i = 0; i < code_lines.lines.size(); i++)
+            Lines.push_back(NumberedLine(i,
+                                code_lines.lines[i]->text().toStdString()));
+        return Lines;
+    }
 };
 
 class Data_Widget : public QWidget {
@@ -194,8 +201,8 @@ public:
 
     void update (const CPU &cpu) {
         for (size_t i = 0; i < cpu.data_cap(); i++) {
-            auto lbl = static_cast<Styled_Label>(data_grid->itemAt(i+1)->widget());
-            lbl.setText(QString::number(cpu.data_cell(i)));
+            auto lbl = static_cast<Styled_Label*>(data_grid->itemAt(i+1)->widget());
+            lbl->setText(QString::number(cpu.data_cell(i)));
         }
     };
 };
@@ -209,7 +216,7 @@ public:
     GPREG_Widget (QWidget *parent) : QWidget (parent) {
 
         Styled_Label *gp_header = new Styled_Label(parent);
-        gp_header->setText("DATA");
+        gp_header->setText("GP REGS");
         gp_header->setStyleSheet("background-color: #8EDC7A");
 
         gp_grid = new QGridLayout(this);
@@ -229,9 +236,9 @@ public:
     }
 
     void update (const CPU &cpu) {
-        for (int i = 0; i < gp_grid->columnCount(); i+=2) {
-            auto lbl = static_cast<Styled_Label>(gp_grid->itemAt(i)->widget());
-            lbl.setText(QString::number(cpu.sp(i/2)));
+        for (int i = 0; i < 8*2; i+=2) {
+            auto lbl = static_cast<Styled_Label*>(gp_grid->itemAt(i+2)->widget());
+            lbl->setText(QString::number(cpu.gp(i/2)));
         }
     };
 };
@@ -266,11 +273,22 @@ public:
     }
 
     void update (const CPU &cpu) {
-        for (int i = 0; i < sp_grid->columnCount(); i+=2) {
-            auto lbl = static_cast<Styled_Label>(sp_grid->itemAt(i)->widget());
-            lbl.setText(QString::number(cpu.sp(i/2)));
+        for (int i = 0; i < 2*2; i+=2) {
+            auto lbl = static_cast<Styled_Label*>(sp_grid->itemAt(i+2)->widget());
+            lbl->setText(QString::number(cpu.sp(i/2)));
         }
     };
 };
+
+
+__attribute__((weak)) QString getFilename (QWidget &w) {
+    QString defPath = "/home/cracky/cppfun/3/programs";
+    QString extStr = "Asm files (*.asm)";
+
+    auto filename =
+    QFileDialog().getOpenFileName(&w,"Open", defPath, extStr);
+
+    return filename;
+}
 
 #endif // MAINWIDGETS_H
