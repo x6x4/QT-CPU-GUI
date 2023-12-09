@@ -50,6 +50,16 @@ void View::clear() {
 
 //  SERVICES
 
+QString getFilename (QWidget &w) {
+    QString defPath = "/home/cracky/cppfun/3/programs";
+    QString extStr = "Asm files (*.asm)";
+
+    auto filename =
+    QFileDialog().getOpenFileName(&w,"Open", defPath, extStr);
+
+    return filename;
+}
+
 void LoadService::operator() (Controller &c, bool def) {
 
     try {
@@ -88,17 +98,15 @@ void RunService::operator() (Controller &c) {
 
     auto guiBreakpoints = c.view->bps();
     auto avl_bps = c.cpuState->getAvlBps();
-    std::size_t curAvlNum = 0;
     my_std::Vec <bpNum> bps;
 
-    //  3 4 5 6 7 8
-    //  0 1 2 3 4 5
+    for (std::size_t curGuiNum = 0, curAvlNum = 0;
+         curGuiNum < guiBreakpoints.size(); curGuiNum++) {
 
-    for (std::size_t curGuiNum = 0, textNum = 0; curGuiNum < guiBreakpoints.size(); curGuiNum++) {
         if (curAvlNum < avl_bps.size()) {
             guiBreakpoints.at(curGuiNum)->is_set
                     && curGuiNum == avl_bps.at(curAvlNum) ?
-                bps.push_back(bpNum(textNum++, curGuiNum))
+                bps.push_back(bpNum(curAvlNum, curGuiNum))
                       : guiBreakpoints.at(curGuiNum)->clear();
 
             if (curGuiNum >= avl_bps.at(curAvlNum)) curAvlNum++;
@@ -109,8 +117,6 @@ void RunService::operator() (Controller &c) {
     }
 
     auto dbg = [this, &c](bpNum bp_num)->void{update_view(bp_num, &c);};
-
-    for (auto e : bps) qDebug() << e.textNum << ' '<< e.progNum << ' ';
 
     c.cpuState->execCPU(bps, dbg);
 

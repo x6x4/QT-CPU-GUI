@@ -102,7 +102,7 @@ private slots:
 
 //  WIDGETS
 
-struct Code_Lines {
+struct CodeLines {
 
     std::vector<QLineEdit*> lines;
 
@@ -115,9 +115,9 @@ struct Code_Lines {
     std::size_t size() { return lines.size(); }
     auto at (std::size_t num) { return lines.at(num); }
 
-    Code_Lines () {};
+    CodeLines () {};
 
-    Code_Lines (const strings &code_strings) {
+    CodeLines (const strings &code_strings) {
         lines = std::vector<QLineEdit*>(code_strings.size());
 
         for (size_t i = 0; i < lines.size(); i++) {
@@ -128,46 +128,55 @@ struct Code_Lines {
         }
     }
 
+    ~CodeLines() {
+        for (auto l : lines) delete l;
+        std::cout << "deleted";
+    }
 };
 
 class Code_Widget : public QWidget {
     Q_OBJECT
 
     my_std::Vec<Breakpoint_Button*> breakpoints;
-    Code_Lines code_lines;
+    CodeLines *Lines = nullptr;
 
 public:
     Code_Widget (QWidget *parent) : QWidget (parent) {};
 
     void init (const strings &lines) {
-        code_lines = Code_Lines(lines);
+        Lines = new CodeLines(lines);
         QGridLayout *cw_grid = new QGridLayout(this);
         cw_grid->setVerticalSpacing(0);
 
-        for (size_t i = 0; i < code_lines.size(); i++) {
+        for (size_t i = 0; i < Lines->size(); i++) {
             Breakpoint_Button *bp = new Breakpoint_Button (this, i+1);
             breakpoints.push_back(bp);
             cw_grid->addWidget(bp, i,0);
 
-            cw_grid->addWidget(code_lines.at(i), i,1, 1, -1);
+            cw_grid->addWidget(Lines->at(i), i,1, 1, -1);
         }
 
         cw_grid->deleteLater();
     }
 
     void update (size_t bp_num) {
-        code_lines.clear_debug();
-        if (bp_num < code_lines.size())
-            code_lines.at(bp_num)->setStyleSheet("background-color: #FF7777");
+        Lines->clear_debug();
+        if (bp_num < Lines->size())
+            Lines->at(bp_num)->setStyleSheet("background-color: #FF7777");
     }
 
     auto &bps () { return breakpoints; }
     auto getLines() {
-        strings Lines;
-        for (size_t i = 0; i < code_lines.lines.size(); i++)
-            Lines.push_back(NumberedLine(i,
-                                code_lines.lines[i]->text().toStdString()));
-        return Lines;
+        strings newLines;
+        for (size_t i = 0; i < Lines->lines.size(); i++)
+            newLines.push_back(NumberedLine(i,
+                                Lines->lines[i]->text().toStdString()));
+        return newLines;
+    }
+
+    ~Code_Widget() {
+        for (auto b : breakpoints) delete b;
+        delete Lines;
     }
 };
 
@@ -279,16 +288,5 @@ public:
         }
     };
 };
-
-
-__attribute__((weak)) QString getFilename (QWidget &w) {
-    QString defPath = "/home/cracky/cppfun/3/programs";
-    QString extStr = "Asm files (*.asm)";
-
-    auto filename =
-    QFileDialog().getOpenFileName(&w,"Open", defPath, extStr);
-
-    return filename;
-}
 
 #endif // MAINWIDGETS_H
