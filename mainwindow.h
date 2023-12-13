@@ -32,7 +32,6 @@ public:
     void execCPU (my_std::Vec<bpNum>& bps,
                std::function<void(bpNum)> dbg) {
         exec(cpu, bps, dbg);
-        cpu.clear();
     }
 };
 
@@ -59,8 +58,6 @@ class LoadService {
 friend UIController;
 
     void operator() (Controller &c, bool def);
-    QString lastFile = "/home/cracky/cppfun/3/programs/prog2.asm";
-
 };
 
 //  Compiles assembler program
@@ -88,24 +85,10 @@ friend RunService;
 
     View* view = nullptr;
     CPUState *cpuState = nullptr;
+    QString lastFile = "/home/cracky/cppfun/3/programs/prog2.asm";
 
-    void initViewCPU (strings lines) {
-        delete cpuState;
-        cpuState = new CPUState();
-        if (view) view->clear();
-        view = new View (&par, cpuState, lines);
-    }
-
-    void update (size_t bp_num) {
-        view->code_win->update(bp_num);
-        qDebug() << "ok1 " << bp_num << '\n';
-        view->_data->update(cpuState->getCPU());
-        qDebug() << "ok2 " << bp_num << '\n';
-        view->gpreg->update(cpuState->getCPU());
-        qDebug() << "ok3 " << bp_num << '\n';
-        view->spreg->update(cpuState->getCPU());
-        qDebug() << "ok4 " << bp_num << '\n';
-    }
+    void initViewCPU(strings lines);
+    void update(size_t bp_num);
     void waitLoop();
 
 public:

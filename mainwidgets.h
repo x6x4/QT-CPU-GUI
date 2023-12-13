@@ -6,8 +6,6 @@
 #include <QPushButton>
 #include <QLabel>
 #include <QGridLayout>
-#include "qdebug.h"
-#include "qfiledialog.h"
 #include "qobjectdefs.h"
 
 #include "/home/cracky/cppfun/3/lib/IR_compiler/fwd_IR_compiler.h"
@@ -130,7 +128,6 @@ struct CodeLines {
 
     ~CodeLines() {
         for (auto l : lines) delete l;
-        std::cout << "deleted";
     }
 };
 
@@ -197,21 +194,21 @@ public:
     }
 
     void init (const CPU &cpu) {
-        for (size_t i = 0; i < cpu.data_sz(); i++) {
+        for (size_t i = 0; i < cpu.data().size(); i++) {
             auto lbl = new Styled_Label (this);
             data_grid->addWidget(lbl, 0, i+2);
 
-            if (i < cpu.data_cap())
-                lbl->setText(QString::number(cpu.data_cell(i)));
+            if (i < cpu.data().capacity())
+                lbl->setText(QString::number(cpu.data().at(i)));
             else
                 lbl->setText("0");
         }
     }
 
     void update (const CPU &cpu) {
-        for (size_t i = 0; i < cpu.data_cap(); i++) {
+        for (size_t i = 0; i < cpu.data().capacity(); i++) {
             auto lbl = static_cast<Styled_Label*>(data_grid->itemAt(i+1)->widget());
-            lbl->setText(QString::number(cpu.data_cell(i)));
+            lbl->setText(QString::number(cpu.data().at(i)));
         }
     };
 };
